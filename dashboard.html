@@ -1,0 +1,390 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+    <meta charset="UTF-8">
+    <meta name="viewport" content="width=device-width, initial-scale=1.0">
+    <meta name="theme-color" content="#FFFFFF">
+    <title>PII Anonymization Engine</title>
+    <style>
+        :root {
+            color-scheme: light;
+            --page: #F6F8F6;
+            --surface: #FFFFFF;
+            --border: #E5E7EB;
+            --text: #14532D;
+            --muted: #6B7280;
+            --green: #16A34A;
+            --green-light: #DCFCE7;
+            --green-soft: #F0FDF4;
+        }
+
+        * { box-sizing: border-box; }
+        body {
+            margin: 0;
+            background: var(--page);
+            color: var(--text);
+            font-family: -apple-system, BlinkMacSystemFont, "Segoe UI", sans-serif;
+            -webkit-font-smoothing: antialiased;
+        }
+        button, textarea { font: inherit; }
+        .topbar {
+            background: var(--surface);
+            border-bottom: 1px solid var(--border);
+        }
+        .topbar-inner, main {
+            width: min(1120px, calc(100% - 48px));
+            margin: 0 auto;
+        }
+        .topbar-inner {
+            min-height: 88px;
+            display: flex;
+            justify-content: space-between;
+            align-items: center;
+            gap: 24px;
+        }
+        h1 {
+            margin: 0;
+            color: var(--text);
+            font-size: 19px;
+            font-weight: 650;
+            letter-spacing: -0.02em;
+        }
+        .subtitle {
+            margin: 5px 0 0;
+            color: var(--muted);
+            font-size: 13px;
+        }
+        .counters { display: flex; gap: 8px; }
+        .counter {
+            min-width: 90px;
+            padding: 8px 12px;
+            border: 1px solid #86EFAC;
+            border-radius: 6px;
+            color: var(--text);
+            font-size: 13px;
+            text-align: center;
+            white-space: nowrap;
+        }
+        .counter strong { color: var(--green); font-weight: 650; }
+        main { padding: 28px 0 40px; }
+        .workbench {
+            display: grid;
+            grid-template-columns: repeat(2, minmax(0, 1fr));
+            gap: 16px;
+        }
+        .panel {
+            min-width: 0;
+            padding: 20px;
+            background: var(--surface);
+            border: 1px solid var(--border);
+            border-radius: 8px;
+        }
+        .panel-title {
+            margin: 0 0 14px;
+            color: var(--text);
+            font-size: 15px;
+            font-weight: 650;
+        }
+        textarea {
+            display: block;
+            width: 100%;
+            height: 190px;
+            padding: 13px 14px;
+            border: 1px solid var(--border);
+            border-radius: 6px;
+            color: #1F2937;
+            font-family: ui-monospace, SFMono-Regular, Menlo, Consolas, monospace;
+            font-size: 13px;
+            line-height: 1.65;
+            resize: vertical;
+        }
+        textarea:focus {
+            border-color: var(--green);
+            outline: 2px solid var(--green-light);
+            outline-offset: 1px;
+        }
+        #sanitizedOutput { background: var(--page); }
+        .drop-zone {
+            min-height: 58px;
+            margin-top: 12px;
+            padding: 9px 12px;
+            display: flex;
+            justify-content: space-between;
+            align-items: center;
+            gap: 12px;
+            border: 1px dashed #9CA3AF;
+            border-radius: 6px;
+            color: var(--muted);
+            font-size: 12px;
+            transition: background-color 120ms ease, border-color 120ms ease;
+        }
+        .drop-zone.is-over { border-color: var(--green); background: var(--green-soft); }
+        .button-row { display: flex; align-items: center; gap: 8px; margin-top: 12px; }
+        .button {
+            min-height: 36px;
+            padding: 8px 13px;
+            border: 1px solid var(--green);
+            border-radius: 6px;
+            background: var(--surface);
+            color: var(--text);
+            font-size: 13px;
+            font-weight: 600;
+            cursor: pointer;
+        }
+        .button:hover { background: var(--green-soft); }
+        .button:focus-visible { outline: 2px solid var(--green); outline-offset: 2px; }
+        .button-primary { background: var(--green); color: #FFFFFF; }
+        .button-primary:hover { background: #15803D; }
+        .button:disabled { cursor: wait; opacity: 0.65; }
+        .button-plain { border-color: var(--border); }
+        #fileInput { display: none; }
+        .status {
+            min-height: 18px;
+            margin: 8px 0 0;
+            color: var(--muted);
+            font-size: 12px;
+        }
+        .status.error { color: var(--text); }
+        .results-section { margin-top: 26px; }
+        .results-heading {
+            margin: 0 0 12px;
+            color: var(--text);
+            font-size: 16px;
+            font-weight: 650;
+        }
+        .results-grid {
+            display: grid;
+            grid-template-columns: repeat(4, minmax(0, 1fr));
+            gap: 12px;
+        }
+        .result-card {
+            min-width: 0;
+            padding: 14px;
+            background: var(--surface);
+            border: 1px solid var(--border);
+            border-radius: 7px;
+        }
+        .result-line {
+            overflow-wrap: anywhere;
+            color: #374151;
+            font-family: ui-monospace, SFMono-Regular, Menlo, Consolas, monospace;
+            font-size: 11px;
+            line-height: 1.6;
+        }
+        .result-badge {
+            display: inline-block;
+            margin-top: 10px;
+            padding: 4px 7px;
+            border-radius: 4px;
+            background: var(--green-light);
+            color: var(--text);
+            font-size: 10px;
+            font-weight: 700;
+            letter-spacing: 0.04em;
+        }
+        .result-badge.safe { color: var(--green); }
+        .result-badge.rejected { background: #F3F4F6; color: var(--text); }
+        .result-reason { margin: 7px 0 0; color: var(--muted); font-size: 11px; }
+        .empty-results { color: var(--muted); font-size: 13px; }
+
+        @media (max-width: 760px) {
+            .topbar-inner, main { width: min(100% - 32px, 560px); }
+            .topbar-inner { padding: 16px 0; align-items: flex-start; flex-direction: column; gap: 14px; }
+            .counters { width: 100%; }
+            .counter { min-width: 0; flex: 1; padding: 8px 6px; }
+            .workbench { grid-template-columns: 1fr; }
+            .results-grid { grid-template-columns: repeat(2, minmax(0, 1fr)); }
+        }
+        @media (max-width: 420px) {
+            .results-grid { grid-template-columns: 1fr; }
+            .drop-zone { align-items: flex-start; flex-direction: column; }
+        }
+    </style>
+</head>
+<body>
+    <header class="topbar">
+        <div class="topbar-inner">
+            <div>
+                <h1>PII Anonymization Engine</h1>
+                <p class="subtitle">Paste text or upload a file, click Redact.</p>
+            </div>
+            <div class="counters" aria-label="Scan totals">
+                <div class="counter">Safe: <strong id="statSafe">0</strong></div>
+                <div class="counter">Redacted: <strong id="statRedacted">0</strong></div>
+                <div class="counter">Rejected: <strong id="statRejected">0</strong></div>
+            </div>
+        </div>
+    </header>
+
+    <main>
+        <section class="workbench" aria-label="Text redaction">
+            <div class="panel">
+                <h2 class="panel-title">Input</h2>
+                <textarea id="rawInput" aria-label="Text to redact" spellcheck="false">http://johndoe.com
+john.doe@email.com
+sk-proj-abc123xyz789def456
++639123456789
+sk-short</textarea>
+                <div class="drop-zone" id="dropZone">
+                    <span>Drop file here - .txt, .csv, .log</span>
+                    <button class="button button-plain" type="button" id="chooseFile">Choose File</button>
+                    <input id="fileInput" type="file" accept=".txt,.csv,.log,text/plain,text/csv">
+                </div>
+                <div class="button-row">
+                    <button class="button button-primary" type="button" id="redactButton">Redact</button>
+                </div>
+                <p class="status" id="inputStatus" role="status" aria-live="polite"></p>
+            </div>
+
+            <div class="panel">
+                <h2 class="panel-title">Output</h2>
+                <textarea id="sanitizedOutput" aria-label="Redacted output" readonly placeholder="Redacted text will appear here."></textarea>
+                <div class="button-row">
+                    <button class="button" type="button" id="copyButton">Copy</button>
+                    <button class="button" type="button" id="downloadButton">Download .txt</button>
+                </div>
+                <p class="status" id="outputStatus" role="status" aria-live="polite"></p>
+            </div>
+        </section>
+
+        <section class="results-section" aria-labelledby="resultsHeading">
+            <h2 class="results-heading" id="resultsHeading">Results</h2>
+            <div class="results-grid" id="resultsGrid" aria-live="polite">
+                <span class="empty-results">Run a scan to see results.</span>
+            </div>
+        </section>
+    </main>
+
+    <script>
+        const input = document.getElementById('rawInput');
+        const output = document.getElementById('sanitizedOutput');
+        const inputStatus = document.getElementById('inputStatus');
+        const outputStatus = document.getElementById('outputStatus');
+        const dropZone = document.getElementById('dropZone');
+        const fileInput = document.getElementById('fileInput');
+
+        document.getElementById('redactButton').addEventListener('click', runEngine);
+        document.getElementById('chooseFile').addEventListener('click', () => fileInput.click());
+        fileInput.addEventListener('change', () => {
+            if (fileInput.files.length) loadFile(fileInput.files[0]);
+        });
+        document.getElementById('copyButton').addEventListener('click', copyOutput);
+        document.getElementById('downloadButton').addEventListener('click', downloadOutput);
+
+        for (const eventName of ['dragenter', 'dragover']) {
+            dropZone.addEventListener(eventName, event => {
+                event.preventDefault();
+                dropZone.classList.add('is-over');
+            });
+        }
+        for (const eventName of ['dragleave', 'drop']) {
+            dropZone.addEventListener(eventName, event => {
+                event.preventDefault();
+                dropZone.classList.remove('is-over');
+            });
+        }
+        dropZone.addEventListener('drop', event => {
+            if (event.dataTransfer.files.length) loadFile(event.dataTransfer.files[0]);
+        });
+
+        function setStatus(element, message, isError = false) {
+            element.textContent = message;
+            element.classList.toggle('error', isError);
+        }
+
+        async function loadFile(file) {
+            if (!/\.(txt|csv|log)$/i.test(file.name)) {
+                setStatus(inputStatus, 'Choose a .txt, .csv, or .log file.', true);
+                fileInput.value = '';
+                return;
+            }
+            try {
+                input.value = await file.text();
+                setStatus(inputStatus, `${file.name} loaded.`);
+                setStatus(outputStatus, '');
+            } catch (error) {
+                setStatus(inputStatus, `Could not read file: ${error.message}`, true);
+            }
+        }
+
+        async function runEngine() {
+            const button = document.getElementById('redactButton');
+            button.disabled = true;
+            setStatus(inputStatus, '');
+            setStatus(outputStatus, '');
+            try {
+                const response = await fetch('/scan', {
+                    method: 'POST',
+                    headers: { 'Content-Type': 'application/json' },
+                    body: JSON.stringify({ text: input.value })
+                });
+                if (!response.ok) throw new Error(`Scan failed (${response.status}).`);
+                const data = await response.json();
+                output.value = data.redacted_text;
+
+                const safeCount = data.tokens.filter(token => token.type === 'TEXT').length;
+                const redactedCount = data.tokens.filter(token => token.accepted).length;
+                document.getElementById('statSafe').textContent = safeCount;
+                document.getElementById('statRedacted').textContent = redactedCount;
+                document.getElementById('statRejected').textContent = data.rejected_count;
+                renderResults(data.tokens);
+            } catch (error) {
+                setStatus(inputStatus, `Could not redact text: ${error.message}`, true);
+            } finally {
+                button.disabled = false;
+            }
+        }
+
+        function renderResults(tokens) {
+            const grid = document.getElementById('resultsGrid');
+            if (!tokens.length) {
+                grid.innerHTML = '<span class="empty-results">No results to show.</span>';
+                return;
+            }
+            grid.innerHTML = tokens.map(token => {
+                const safe = token.type === 'TEXT';
+                const badge = safe ? 'SAFE' : token.accepted ? 'REDACTED' : 'REJECTED';
+                const result = token.accepted ? token.redacted_tag : token.token;
+                const reason = !token.accepted && !safe
+                    ? (token.type === 'API_KEY' && token.token.length < 20
+                        ? `Length ${token.token.length} < 20`
+                        : token.reason)
+                    : '';
+                return `<article class="result-card">
+                    <div class="result-line">${escapeHtml(token.token)} -&gt; ${escapeHtml(result)}</div>
+                    <span class="result-badge ${safe ? 'safe' : token.accepted ? '' : 'rejected'}">${badge}</span>
+                    ${reason ? `<p class="result-reason">${escapeHtml(reason)}</p>` : ''}
+                </article>`;
+            }).join('');
+        }
+
+        async function copyOutput() {
+            try {
+                await navigator.clipboard.writeText(output.value);
+                setStatus(outputStatus, 'Output copied.');
+            } catch (error) {
+                setStatus(outputStatus, `Could not copy output: ${error.message}`, true);
+            }
+        }
+
+        function downloadOutput() {
+            const file = new Blob([output.value], { type: 'text/plain;charset=utf-8' });
+            const url = URL.createObjectURL(file);
+            const link = document.createElement('a');
+            link.href = url;
+            link.download = 'redacted-output.txt';
+            link.click();
+            URL.revokeObjectURL(url);
+            setStatus(outputStatus, 'Download started.');
+        }
+
+        function escapeHtml(value) {
+            return String(value).replace(/[&<>"']/g, char => ({
+                '&': '&amp;', '<': '&lt;', '>': '&gt;', '"': '&quot;', "'": '&#39;'
+            })[char]);
+        }
+
+        runEngine();
+    </script>
+</body>
+</html>
