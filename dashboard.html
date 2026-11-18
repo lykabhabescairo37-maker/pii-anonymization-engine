@@ -1,390 +1,1139 @@
-<!DOCTYPE html>
+<!doctype html>
 <html lang="en">
-<head>
-    <meta charset="UTF-8">
-    <meta name="viewport" content="width=device-width, initial-scale=1.0">
-    <meta name="theme-color" content="#FFFFFF">
+  <head>
+    <meta charset="UTF-8" />
+    <meta name="viewport" content="width=device-width, initial-scale=1.0" />
+    <meta name="theme-color" content="#156F63" />
     <title>PII Anonymization Engine</title>
+    <link
+      rel="icon"
+      href="data:image/svg+xml,%3Csvg xmlns=%22http://www.w3.org/2000/svg%22 viewBox=%220 0 48 48%22 width=%2248%22 height=%2248%22%3E%3Cpath d=%22M24 3 L42 9.5 V23 C42 33.5 34.5 41 24 45 C13.5 41 6 33.5 6 23 V9.5 Z%22 fill=%22%23156F63%22/%3E%3Crect x=%2213%22 y=%2212.5%22 width=%2222%22 height=%224.5%22 rx=%222.25%22 fill=%22%23E85617%22/%3E%3Cpath d=%22M17 25.5 H19.5 M25.5 25.5 H27.8%22 stroke=%22%23FFFFFF%22 stroke-width=%221.6%22 stroke-linecap=%22round%22/%3E%3Ccircle cx=%2214%22 cy=%2225.5%22 r=%223%22 fill=%22%23FFFFFF%22/%3E%3Ccircle cx=%2222.5%22 cy=%2225.5%22 r=%223%22 fill=%22%23FFFFFF%22/%3E%3Ccircle cx=%2233%22 cy=%2225.5%22 r=%223%22 fill=%22%23FFFFFF%22/%3E%3Ccircle cx=%2233%22 cy=%2225.5%22 r=%225.3%22 fill=%22none%22 stroke=%22%23FFFFFF%22 stroke-width=%221.5%22/%3E%3Crect x=%2213%22 y=%2233%22 width=%2220%22 height=%223.5%22 rx=%221.75%22 fill=%22%23FFFFFF%22 opacity=%220.4%22/%3E%3C/svg%3E"
+    />
+    <link rel="preconnect" href="https://fonts.googleapis.com" />
+    <link rel="preconnect" href="https://fonts.gstatic.com" crossorigin />
+    <link
+      href="https://fonts.googleapis.com/css2?family=Inter:wght@400;500;600;700&family=JetBrains+Mono:wght@400;500;600&display=swap"
+      rel="stylesheet"
+    />
     <style>
-        :root {
-            color-scheme: light;
-            --page: #F6F8F6;
-            --surface: #FFFFFF;
-            --border: #E5E7EB;
-            --text: #14532D;
-            --muted: #6B7280;
-            --green: #16A34A;
-            --green-light: #DCFCE7;
-            --green-soft: #F0FDF4;
-        }
+      /* COLOR SYSTEM - color wheel: teal 172deg (base), cyan 200deg (analogous), coral 18deg (split-complement) */
+      :root {
+        color-scheme: light;
+        --page: #f3f7f6;
+        --surface: #ffffff;
+        --border: #d3dfdd;
+        --ink: #122b30;
+        --muted: #536a6e;
+        --teal: #156f63;
+        --teal-hover: #105b51;
+        --teal-tint: #def2f0;
+        --teal-soft: #f1f9f8;
+        --teal-line: #94d1c9;
+        --cyan: #166c98;
+        --cyan-tint: #e5f3fa;
+        --coral: #e85617;
+        --coral-text: #8b3318;
+        --coral-tint: #fde7dd;
+        --coral-line: #f2ab8c;
+        --margin: 0.5in;
 
-        * { box-sizing: border-box; }
+        /* TYPOGRAPHY - Inter for reading, JetBrains Mono for tokens; system fonts if offline */
+        --font-ui:
+          'Inter', 'Segoe UI Variable Text', 'Segoe UI', system-ui,
+          -apple-system, Roboto, sans-serif;
+        --font-mono:
+          'JetBrains Mono', 'Cascadia Code', 'SF Mono', Menlo, Consolas,
+          monospace;
+        --fs-xs: 12px;
+        --fs-sm: 13px;
+        --fs-base: 15px;
+        --fs-md: 16px;
+        --fs-lg: 19px;
+        --fs-xl: 26px;
+
+        /* SPACING - 8px grid */
+        --s1: 8px;
+        --s2: 16px;
+        --s3: 24px;
+        --s4: 32px;
+      }
+      * {
+        box-sizing: border-box;
+      }
+      body {
+        margin: 0;
+        padding: var(--margin);
+        background: var(--page);
+        color: var(--ink);
+        font: 400 var(--fs-base)/1.55 var(--font-ui);
+        -webkit-font-smoothing: antialiased;
+      }
+      @page {
+        margin: 0.5in;
+      }
+      @media print {
         body {
-            margin: 0;
-            background: var(--page);
-            color: var(--text);
-            font-family: -apple-system, BlinkMacSystemFont, "Segoe UI", sans-serif;
-            -webkit-font-smoothing: antialiased;
+          padding: 0;
+          background: #fff;
         }
-        button, textarea { font: inherit; }
-        .topbar {
-            background: var(--surface);
-            border-bottom: 1px solid var(--border);
+      }
+      button,
+      textarea {
+        font: inherit;
+      }
+      h1,
+      h2,
+      h3,
+      p {
+        margin: 0;
+      }
+
+      .topbar,
+      main {
+        max-width: 1200px;
+        margin-left: auto;
+        margin-right: auto;
+      }
+
+      /* --- header --- */
+      .topbar {
+        margin-bottom: var(--s3);
+        background: var(--surface);
+        border: 1px solid var(--border);
+        border-top: 4px solid var(--teal);
+        border-radius: 12px;
+      }
+      .topbar-inner {
+        padding: 20px var(--s3);
+        display: flex;
+        justify-content: space-between;
+        align-items: center;
+        gap: var(--s3);
+        flex-wrap: wrap;
+      }
+      .brand {
+        display: flex;
+        align-items: center;
+        gap: var(--s2);
+        min-width: 0;
+      }
+      .brand svg {
+        flex: none;
+        width: 52px;
+        height: 52px;
+      }
+      h1 {
+        font-size: var(--fs-xl);
+        font-weight: 700;
+        line-height: 1.15;
+        letter-spacing: -0.025em;
+      }
+      .subtitle {
+        margin-top: 4px;
+        color: var(--muted);
+        font-size: var(--fs-base);
+      }
+      .counters {
+        display: flex;
+        gap: var(--s1);
+      }
+      .counter {
+        min-width: 104px;
+        padding: 10px var(--s2);
+        display: flex;
+        flex-direction: column;
+        align-items: center;
+        border: 1px solid var(--border);
+        border-radius: 8px;
+        color: var(--muted);
+      }
+      .counter strong {
+        font-size: 24px;
+        line-height: 1.2;
+        font-weight: 700;
+        color: var(--ink);
+        font-variant-numeric: tabular-nums;
+      }
+      .counter span {
+        font-size: 11px;
+        font-weight: 600;
+        letter-spacing: 0.08em;
+        text-transform: uppercase;
+      }
+      .counter--redacted {
+        background: var(--teal-tint);
+        border-color: var(--teal-line);
+        color: var(--teal);
+      }
+      .counter--redacted strong {
+        color: var(--teal);
+      }
+      .counter--rejected {
+        background: var(--coral-tint);
+        border-color: var(--coral-line);
+        color: var(--coral-text);
+      }
+      .counter--rejected strong {
+        color: var(--coral-text);
+      }
+
+      /* --- input / output panels --- */
+      .workbench {
+        display: grid;
+        grid-template-columns: repeat(2, minmax(0, 1fr));
+        gap: var(--s3);
+      }
+      .panel,
+      .automata {
+        min-width: 0;
+        padding: var(--s3);
+        background: var(--surface);
+        border: 1px solid var(--border);
+        border-radius: 12px;
+      }
+      .panel-title {
+        margin-bottom: var(--s2);
+        font-size: var(--fs-md);
+        font-weight: 650;
+        letter-spacing: -0.01em;
+      }
+      textarea {
+        display: block;
+        width: 100%;
+        height: 260px;
+        padding: 14px 16px;
+        border: 1px solid var(--border);
+        border-radius: 8px;
+        color: var(--ink);
+        background: var(--surface);
+        font: 400 14px/1.65 var(--font-mono);
+        resize: vertical;
+      }
+      textarea:focus {
+        border-color: var(--cyan);
+        outline: 2px solid var(--cyan-tint);
+        outline-offset: 1px;
+      }
+      #sanitizedOutput {
+        background: var(--teal-soft);
+      }
+      .drop-zone {
+        margin-top: var(--s2);
+        padding: 12px var(--s2);
+        display: flex;
+        justify-content: space-between;
+        align-items: center;
+        gap: var(--s2);
+        border: 1.5px dashed var(--teal-line);
+        border-radius: 8px;
+        color: var(--muted);
+        font-size: var(--fs-sm);
+        transition:
+          background-color 120ms,
+          border-color 120ms;
+      }
+      .drop-zone.is-over {
+        border-color: var(--teal);
+        background: var(--teal-tint);
+      }
+      .button-row {
+        display: flex;
+        align-items: center;
+        flex-wrap: wrap;
+        gap: var(--s1);
+        margin-top: var(--s2);
+      }
+      .button {
+        min-height: 40px;
+        padding: 8px 16px;
+        border: 1px solid var(--teal);
+        border-radius: 8px;
+        background: var(--surface);
+        color: var(--teal);
+        font-size: 14px;
+        font-weight: 600;
+        cursor: pointer;
+      }
+      .button:hover {
+        background: var(--teal-soft);
+      }
+      .button:focus-visible,
+      .tab:focus-visible,
+      .result-card:focus-visible {
+        outline: 2px solid var(--cyan);
+        outline-offset: 2px;
+      }
+      .button-primary {
+        background: var(--teal);
+        color: #ffffff;
+      }
+      .button-primary:hover {
+        background: var(--teal-hover);
+      }
+      .button:disabled {
+        cursor: not-allowed;
+        opacity: 0.55;
+      }
+      .button-plain {
+        border-color: var(--border);
+        color: var(--ink);
+      }
+      #fileInput {
+        display: none;
+      }
+      .status {
+        min-height: 20px;
+        margin-top: var(--s1);
+        color: var(--muted);
+        font-size: var(--fs-sm);
+      }
+      .status.error {
+        color: var(--coral-text);
+        font-weight: 600;
+      }
+
+      /* --- results --- */
+      main {
+        padding: 0;
+      }
+      .results-section,
+      .automata {
+        margin-top: var(--s4);
+      }
+      .section-head {
+        display: flex;
+        justify-content: space-between;
+        align-items: center;
+        flex-wrap: wrap;
+        gap: var(--s1) var(--s2);
+        margin-bottom: var(--s2);
+      }
+      .results-heading {
+        font-size: var(--fs-lg);
+        font-weight: 700;
+        letter-spacing: -0.02em;
+      }
+      .results-grid {
+        display: grid;
+        grid-template-columns: repeat(auto-fill, minmax(230px, 1fr));
+        gap: var(--s2);
+      }
+      .result-card {
+        min-width: 0;
+        padding: var(--s2);
+        background: var(--surface);
+        border: 1px solid var(--border);
+        border-radius: 10px;
+        cursor: pointer;
+      }
+      .result-card:hover {
+        border-color: var(--teal-line);
+      }
+      .result-card.selected {
+        border-color: var(--cyan);
+        background: var(--cyan-tint);
+      }
+      .card-top {
+        display: flex;
+        justify-content: space-between;
+        align-items: center;
+        gap: var(--s1);
+        margin-bottom: 10px;
+      }
+      .type-tag {
+        font: 600 11px var(--font-mono);
+        letter-spacing: 0.06em;
+        color: var(--muted);
+      }
+      .tok,
+      .arrow {
+        overflow-wrap: anywhere;
+        font: 400 13px/1.55 var(--font-mono);
+      }
+      .arrow {
+        margin-top: 4px;
+        color: var(--teal);
+        font-weight: 600;
+      }
+      .result-badge {
+        padding: 3px 8px;
+        border-radius: 4px;
+        background: var(--teal-tint);
+        color: var(--teal);
+        font-size: 11px;
+        font-weight: 700;
+        letter-spacing: 0.06em;
+      }
+      .result-badge.safe {
+        background: transparent;
+        border: 1px solid var(--border);
+        color: var(--muted);
+      }
+      .result-badge.rejected {
+        background: var(--coral-tint);
+        color: var(--coral-text);
+      }
+      .result-reason {
+        margin-top: 6px;
+        color: var(--muted);
+        font-size: var(--fs-xs);
+      }
+      .empty-results,
+      .more-results {
+        color: var(--muted);
+        font-size: var(--fs-base);
+      }
+      .more-results {
+        grid-column: 1 / -1;
+        font-size: var(--fs-sm);
+      }
+      .hint {
+        margin-top: var(--s1);
+        color: var(--muted);
+        font-size: var(--fs-sm);
+      }
+
+      /* --- automata viewer --- */
+      .filters,
+      .tabs {
+        display: flex;
+        gap: var(--s1);
+        flex-wrap: wrap;
+      }
+      .tabs {
+        margin-bottom: var(--s2);
+      }
+      .tab {
+        padding: 6px 14px;
+        border: 1px solid var(--border);
+        border-radius: 999px;
+        background: var(--surface);
+        color: var(--ink);
+        font-size: 14px;
+        font-weight: 500;
+        cursor: pointer;
+      }
+      .tab:hover {
+        border-color: var(--teal-line);
+        background: var(--teal-soft);
+      }
+      .tab.active {
+        background: var(--teal);
+        border-color: var(--teal);
+        color: #ffffff;
+      }
+      .dfa-desc {
+        font-size: var(--fs-base);
+      }
+      .dfa-legend {
+        margin: 4px 0 var(--s2);
+        color: var(--muted);
+        font-size: var(--fs-sm);
+      }
+      .diagram-wrap {
+        overflow-x: auto;
+        border: 1px solid var(--border);
+        border-radius: 10px;
+        background: var(--teal-soft);
+      }
+      .diagram-wrap svg {
+        display: block;
+      }
+      .node-box {
+        fill: var(--surface);
+        stroke: #8fa9a6;
+        stroke-width: 1.5;
+      }
+      .node-box.accepting {
+        stroke: var(--teal);
+        stroke-width: 2;
+      }
+      .node-box.visited {
+        fill: var(--teal-tint);
+        stroke: var(--teal);
+      }
+      .node-text {
+        font: 500 12.5px var(--font-ui);
+        fill: var(--ink);
+        text-anchor: middle;
+      }
+      .edge {
+        fill: none;
+        stroke: #8fa9a6;
+        stroke-width: 1.4;
+      }
+      .edge.visited {
+        stroke: var(--teal);
+        stroke-width: 2.6;
+      }
+      .edge-label {
+        font: 500 12px var(--font-mono);
+        fill: var(--muted);
+        text-anchor: middle;
+      }
+      .trace-title {
+        margin: var(--s3) 0 var(--s1);
+        font-size: var(--fs-md);
+        font-weight: 650;
+      }
+      .trace {
+        width: 100%;
+        border-collapse: collapse;
+        font-size: var(--fs-sm);
+        background: var(--surface);
+      }
+      .trace th,
+      .trace td {
+        padding: 8px 12px;
+        border: 1px solid var(--border);
+        text-align: left;
+      }
+      .trace th {
+        background: var(--teal-tint);
+        color: var(--teal);
+        font-weight: 600;
+      }
+      .trace td {
+        font-family: var(--font-mono);
+      }
+      .trace .dead {
+        color: var(--coral-text);
+        font-weight: 700;
+      }
+
+      @media (max-width: 760px) {
+        .workbench {
+          grid-template-columns: 1fr;
         }
-        .topbar-inner, main {
-            width: min(1120px, calc(100% - 48px));
-            margin: 0 auto;
+        .counters {
+          width: 100%;
         }
-        .topbar-inner {
-            min-height: 88px;
-            display: flex;
-            justify-content: space-between;
-            align-items: center;
-            gap: 24px;
+        .counter {
+          min-width: 0;
+          flex: 1;
         }
         h1 {
-            margin: 0;
-            color: var(--text);
-            font-size: 19px;
-            font-weight: 650;
-            letter-spacing: -0.02em;
+          font-size: 22px;
         }
-        .subtitle {
-            margin: 5px 0 0;
-            color: var(--muted);
-            font-size: 13px;
-        }
-        .counters { display: flex; gap: 8px; }
-        .counter {
-            min-width: 90px;
-            padding: 8px 12px;
-            border: 1px solid #86EFAC;
-            border-radius: 6px;
-            color: var(--text);
-            font-size: 13px;
-            text-align: center;
-            white-space: nowrap;
-        }
-        .counter strong { color: var(--green); font-weight: 650; }
-        main { padding: 28px 0 40px; }
-        .workbench {
-            display: grid;
-            grid-template-columns: repeat(2, minmax(0, 1fr));
-            gap: 16px;
-        }
-        .panel {
-            min-width: 0;
-            padding: 20px;
-            background: var(--surface);
-            border: 1px solid var(--border);
-            border-radius: 8px;
-        }
-        .panel-title {
-            margin: 0 0 14px;
-            color: var(--text);
-            font-size: 15px;
-            font-weight: 650;
-        }
-        textarea {
-            display: block;
-            width: 100%;
-            height: 190px;
-            padding: 13px 14px;
-            border: 1px solid var(--border);
-            border-radius: 6px;
-            color: #1F2937;
-            font-family: ui-monospace, SFMono-Regular, Menlo, Consolas, monospace;
-            font-size: 13px;
-            line-height: 1.65;
-            resize: vertical;
-        }
-        textarea:focus {
-            border-color: var(--green);
-            outline: 2px solid var(--green-light);
-            outline-offset: 1px;
-        }
-        #sanitizedOutput { background: var(--page); }
+      }
+      @media (max-width: 420px) {
         .drop-zone {
-            min-height: 58px;
-            margin-top: 12px;
-            padding: 9px 12px;
-            display: flex;
-            justify-content: space-between;
-            align-items: center;
-            gap: 12px;
-            border: 1px dashed #9CA3AF;
-            border-radius: 6px;
-            color: var(--muted);
-            font-size: 12px;
-            transition: background-color 120ms ease, border-color 120ms ease;
+          align-items: flex-start;
+          flex-direction: column;
         }
-        .drop-zone.is-over { border-color: var(--green); background: var(--green-soft); }
-        .button-row { display: flex; align-items: center; gap: 8px; margin-top: 12px; }
-        .button {
-            min-height: 36px;
-            padding: 8px 13px;
-            border: 1px solid var(--green);
-            border-radius: 6px;
-            background: var(--surface);
-            color: var(--text);
-            font-size: 13px;
-            font-weight: 600;
-            cursor: pointer;
-        }
-        .button:hover { background: var(--green-soft); }
-        .button:focus-visible { outline: 2px solid var(--green); outline-offset: 2px; }
-        .button-primary { background: var(--green); color: #FFFFFF; }
-        .button-primary:hover { background: #15803D; }
-        .button:disabled { cursor: wait; opacity: 0.65; }
-        .button-plain { border-color: var(--border); }
-        #fileInput { display: none; }
-        .status {
-            min-height: 18px;
-            margin: 8px 0 0;
-            color: var(--muted);
-            font-size: 12px;
-        }
-        .status.error { color: var(--text); }
-        .results-section { margin-top: 26px; }
-        .results-heading {
-            margin: 0 0 12px;
-            color: var(--text);
-            font-size: 16px;
-            font-weight: 650;
-        }
-        .results-grid {
-            display: grid;
-            grid-template-columns: repeat(4, minmax(0, 1fr));
-            gap: 12px;
-        }
-        .result-card {
-            min-width: 0;
-            padding: 14px;
-            background: var(--surface);
-            border: 1px solid var(--border);
-            border-radius: 7px;
-        }
-        .result-line {
-            overflow-wrap: anywhere;
-            color: #374151;
-            font-family: ui-monospace, SFMono-Regular, Menlo, Consolas, monospace;
-            font-size: 11px;
-            line-height: 1.6;
-        }
-        .result-badge {
-            display: inline-block;
-            margin-top: 10px;
-            padding: 4px 7px;
-            border-radius: 4px;
-            background: var(--green-light);
-            color: var(--text);
-            font-size: 10px;
-            font-weight: 700;
-            letter-spacing: 0.04em;
-        }
-        .result-badge.safe { color: var(--green); }
-        .result-badge.rejected { background: #F3F4F6; color: var(--text); }
-        .result-reason { margin: 7px 0 0; color: var(--muted); font-size: 11px; }
-        .empty-results { color: var(--muted); font-size: 13px; }
-
-        @media (max-width: 760px) {
-            .topbar-inner, main { width: min(100% - 32px, 560px); }
-            .topbar-inner { padding: 16px 0; align-items: flex-start; flex-direction: column; gap: 14px; }
-            .counters { width: 100%; }
-            .counter { min-width: 0; flex: 1; padding: 8px 6px; }
-            .workbench { grid-template-columns: 1fr; }
-            .results-grid { grid-template-columns: repeat(2, minmax(0, 1fr)); }
-        }
-        @media (max-width: 420px) {
-            .results-grid { grid-template-columns: 1fr; }
-            .drop-zone { align-items: flex-start; flex-direction: column; }
-        }
+      }
     </style>
-</head>
-<body>
+  </head>
+  <body>
     <header class="topbar">
-        <div class="topbar-inner">
-            <div>
-                <h1>PII Anonymization Engine</h1>
-                <p class="subtitle">Paste text or upload a file, click Redact.</p>
-            </div>
-            <div class="counters" aria-label="Scan totals">
-                <div class="counter">Safe: <strong id="statSafe">0</strong></div>
-                <div class="counter">Redacted: <strong id="statRedacted">0</strong></div>
-                <div class="counter">Rejected: <strong id="statRejected">0</strong></div>
-            </div>
+      <div class="topbar-inner">
+        <div class="brand">
+          <svg
+            viewBox="0 0 48 48"
+            role="img"
+            aria-label="PII Anonymization Engine logo"
+          >
+            <path
+              d="M24 3 L42 9.5 V23 C42 33.5 34.5 41 24 45 C13.5 41 6 33.5 6 23 V9.5 Z"
+              fill="#156F63"
+            />
+            <rect
+              x="13"
+              y="12.5"
+              width="22"
+              height="4.5"
+              rx="2.25"
+              fill="#E85617"
+            />
+            <path
+              d="M17 25.5 H19.5 M25.5 25.5 H27.8"
+              stroke="#FFFFFF"
+              stroke-width="1.6"
+              stroke-linecap="round"
+            />
+            <circle cx="14" cy="25.5" r="3" fill="#FFFFFF" />
+            <circle cx="22.5" cy="25.5" r="3" fill="#FFFFFF" />
+            <circle cx="33" cy="25.5" r="3" fill="#FFFFFF" />
+            <circle
+              cx="33"
+              cy="25.5"
+              r="5.3"
+              fill="none"
+              stroke="#FFFFFF"
+              stroke-width="1.5"
+            />
+            <rect
+              x="13"
+              y="33"
+              width="20"
+              height="3.5"
+              rx="1.75"
+              fill="#FFFFFF"
+              opacity="0.4"
+            />
+          </svg>
+          <div>
+            <h1>PII Anonymization Engine</h1>
+            <p class="subtitle">Paste text or upload a file, click Redact.</p>
+          </div>
         </div>
+        <div class="counters" aria-label="Scan totals">
+          <div class="counter counter--safe">
+            <strong id="statSafe">0</strong><span>Safe</span>
+          </div>
+          <div class="counter counter--redacted">
+            <strong id="statRedacted">0</strong><span>Redacted</span>
+          </div>
+          <div class="counter counter--rejected">
+            <strong id="statRejected">0</strong><span>Rejected</span>
+          </div>
+        </div>
+      </div>
     </header>
 
     <main>
-        <section class="workbench" aria-label="Text redaction">
-            <div class="panel">
-                <h2 class="panel-title">Input</h2>
-                <textarea id="rawInput" aria-label="Text to redact" spellcheck="false">http://johndoe.com
+      <section class="workbench" aria-label="Text redaction">
+        <div class="panel">
+          <h2 class="panel-title">Input</h2>
+          <textarea
+            id="rawInput"
+            aria-label="Text to redact"
+            spellcheck="false"
+          >
+http://johndoe.com
 john.doe@email.com
 sk-proj-abc123xyz789def456
 +639123456789
-sk-short</textarea>
-                <div class="drop-zone" id="dropZone">
-                    <span>Drop file here - .txt, .csv, .log</span>
-                    <button class="button button-plain" type="button" id="chooseFile">Choose File</button>
-                    <input id="fileInput" type="file" accept=".txt,.csv,.log,text/plain,text/csv">
-                </div>
-                <div class="button-row">
-                    <button class="button button-primary" type="button" id="redactButton">Redact</button>
-                </div>
-                <p class="status" id="inputStatus" role="status" aria-live="polite"></p>
-            </div>
+sk-short</textarea
+          >
+          <div class="drop-zone" id="dropZone">
+            <span>Drop file here - .txt .csv .tsv .log .json .md</span>
+            <button class="button button-plain" type="button" id="chooseFile">
+              Choose File
+            </button>
+            <input
+              id="fileInput"
+              type="file"
+              accept=".txt,.csv,.tsv,.log,.json,.md"
+            />
+          </div>
+          <div class="button-row">
+            <button
+              class="button button-primary"
+              type="button"
+              id="redactButton"
+            >
+              Redact
+            </button>
+            <button class="button" type="button" id="fileRedactButton" disabled>
+              Redact file &amp; download
+            </button>
+          </div>
+          <p
+            class="status"
+            id="inputStatus"
+            role="status"
+            aria-live="polite"
+          ></p>
+        </div>
 
-            <div class="panel">
-                <h2 class="panel-title">Output</h2>
-                <textarea id="sanitizedOutput" aria-label="Redacted output" readonly placeholder="Redacted text will appear here."></textarea>
-                <div class="button-row">
-                    <button class="button" type="button" id="copyButton">Copy</button>
-                    <button class="button" type="button" id="downloadButton">Download .txt</button>
-                </div>
-                <p class="status" id="outputStatus" role="status" aria-live="polite"></p>
-            </div>
-        </section>
+        <div class="panel">
+          <h2 class="panel-title">Output</h2>
+          <textarea
+            id="sanitizedOutput"
+            aria-label="Redacted output"
+            readonly
+            placeholder="Redacted text will appear here."
+          ></textarea>
+          <div class="button-row">
+            <button class="button" type="button" id="copyButton">Copy</button>
+            <button class="button" type="button" id="downloadButton">
+              Download .txt
+            </button>
+          </div>
+          <p
+            class="status"
+            id="outputStatus"
+            role="status"
+            aria-live="polite"
+          ></p>
+        </div>
+      </section>
 
-        <section class="results-section" aria-labelledby="resultsHeading">
-            <h2 class="results-heading" id="resultsHeading">Results</h2>
-            <div class="results-grid" id="resultsGrid" aria-live="polite">
-                <span class="empty-results">Run a scan to see results.</span>
-            </div>
-        </section>
+      <section class="results-section" aria-labelledby="resultsHeading">
+        <div class="section-head">
+          <h2 class="results-heading" id="resultsHeading">Results</h2>
+          <div
+            class="filters"
+            id="filters"
+            role="group"
+            aria-label="Filter results"
+          >
+            <button class="tab active" type="button" data-f="all">All</button>
+            <button class="tab" type="button" data-f="redacted">
+              Redacted
+            </button>
+            <button class="tab" type="button" data-f="rejected">
+              Rejected
+            </button>
+            <button class="tab" type="button" data-f="safe">Safe</button>
+          </div>
+        </div>
+        <div class="results-grid" id="resultsGrid" aria-live="polite">
+          <span class="empty-results">Run a scan to see results.</span>
+        </div>
+        <p class="hint">
+          Click a result to see the path it took through its automaton.
+        </p>
+      </section>
+
+      <section class="automata" aria-labelledby="automataHeading">
+        <h2 class="results-heading" id="automataHeading">Automata</h2>
+        <div class="tabs" id="dfaTabs" role="tablist"></div>
+        <p class="dfa-desc" id="dfaDesc"></p>
+        <p class="dfa-legend" id="dfaLegend"></p>
+        <div class="diagram-wrap" id="diagramWrap"></div>
+        <p class="hint">
+          Any symbol with no arrow leads to the dead state q_d (rejected).
+          Double-border = accepting state.
+        </p>
+        <h3 class="trace-title" id="traceTitle" hidden></h3>
+        <div id="traceWrap"></div>
+      </section>
     </main>
 
     <script>
-        const input = document.getElementById('rawInput');
-        const output = document.getElementById('sanitizedOutput');
-        const inputStatus = document.getElementById('inputStatus');
-        const outputStatus = document.getElementById('outputStatus');
-        const dropZone = document.getElementById('dropZone');
-        const fileInput = document.getElementById('fileInput');
+      const input = document.getElementById('rawInput')
+      const output = document.getElementById('sanitizedOutput')
+      const inputStatus = document.getElementById('inputStatus')
+      const outputStatus = document.getElementById('outputStatus')
+      const dropZone = document.getElementById('dropZone')
+      const fileInput = document.getElementById('fileInput')
+      let currentFile = null,
+        lastTokens = [],
+        dfas = [],
+        activeDfa = null,
+        selectedIndex = -1
 
-        document.getElementById('redactButton').addEventListener('click', runEngine);
-        document.getElementById('chooseFile').addEventListener('click', () => fileInput.click());
-        fileInput.addEventListener('change', () => {
-            if (fileInput.files.length) loadFile(fileInput.files[0]);
-        });
-        document.getElementById('copyButton').addEventListener('click', copyOutput);
-        document.getElementById('downloadButton').addEventListener('click', downloadOutput);
+      document
+        .getElementById('redactButton')
+        .addEventListener('click', runEngine)
+      document
+        .getElementById('chooseFile')
+        .addEventListener('click', () => fileInput.click())
+      fileInput.addEventListener('change', () => {
+        if (fileInput.files.length) loadFile(fileInput.files[0])
+      })
+      const fileRedactButton = document.getElementById('fileRedactButton')
+      fileRedactButton.addEventListener('click', redactFile)
+      document
+        .getElementById('copyButton')
+        .addEventListener('click', copyOutput)
+      document
+        .getElementById('downloadButton')
+        .addEventListener('click', downloadOutput)
 
-        for (const eventName of ['dragenter', 'dragover']) {
-            dropZone.addEventListener(eventName, event => {
-                event.preventDefault();
-                dropZone.classList.add('is-over');
-            });
+      for (const eventName of ['dragenter', 'dragover']) {
+        dropZone.addEventListener(eventName, (event) => {
+          event.preventDefault()
+          dropZone.classList.add('is-over')
+        })
+      }
+      for (const eventName of ['dragleave', 'drop']) {
+        dropZone.addEventListener(eventName, (event) => {
+          event.preventDefault()
+          dropZone.classList.remove('is-over')
+        })
+      }
+      dropZone.addEventListener('drop', (event) => {
+        if (event.dataTransfer.files.length)
+          loadFile(event.dataTransfer.files[0])
+      })
+
+      function setStatus(element, message, isError = false) {
+        element.textContent = message
+        element.classList.toggle('error', isError)
+      }
+
+      async function loadFile(file) {
+        if (!/\.(txt|csv|tsv|log|json|md)$/i.test(file.name)) {
+          setStatus(
+            inputStatus,
+            'Choose a .txt, .csv, .tsv, .log, .json or .md file.',
+            true,
+          )
+          fileInput.value = ''
+          return
         }
-        for (const eventName of ['dragleave', 'drop']) {
-            dropZone.addEventListener(eventName, event => {
-                event.preventDefault();
-                dropZone.classList.remove('is-over');
-            });
+        currentFile = file
+        fileRedactButton.disabled = false
+        try {
+          if (file.size > 1000000) {
+            input.value = ''
+            setStatus(
+              inputStatus,
+              `${file.name} is large - use "Redact file & download".`,
+            )
+            return
+          }
+          input.value = await file.text()
+          setStatus(inputStatus, `${file.name} loaded.`)
+          setStatus(outputStatus, '')
+        } catch (error) {
+          setStatus(inputStatus, `Could not read file: ${error.message}`, true)
         }
-        dropZone.addEventListener('drop', event => {
-            if (event.dataTransfer.files.length) loadFile(event.dataTransfer.files[0]);
-        });
+      }
 
-        function setStatus(element, message, isError = false) {
-            element.textContent = message;
-            element.classList.toggle('error', isError);
+      async function runEngine() {
+        const button = document.getElementById('redactButton')
+        button.disabled = true
+        setStatus(inputStatus, '')
+        setStatus(outputStatus, '')
+        try {
+          const response = await fetch('/scan', {
+            method: 'POST',
+            headers: { 'Content-Type': 'application/json' },
+            body: JSON.stringify({ text: input.value }),
+          })
+          if (!response.ok) throw new Error(`Scan failed (${response.status}).`)
+          const data = await response.json()
+          output.value = data.redacted_text
+
+          const safeCount = data.tokens.filter(
+            (token) => token.type === 'TEXT',
+          ).length
+          const redactedCount = data.tokens.filter(
+            (token) => token.accepted,
+          ).length
+          document.getElementById('statSafe').textContent = safeCount
+          document.getElementById('statRedacted').textContent = redactedCount
+          document.getElementById('statRejected').textContent =
+            data.rejected_count
+          renderResults(data.tokens)
+        } catch (error) {
+          setStatus(
+            inputStatus,
+            `Could not redact text: ${error.message}`,
+            true,
+          )
+        } finally {
+          button.disabled = false
         }
+      }
 
-        async function loadFile(file) {
-            if (!/\.(txt|csv|log)$/i.test(file.name)) {
-                setStatus(inputStatus, 'Choose a .txt, .csv, or .log file.', true);
-                fileInput.value = '';
-                return;
+      const MAX_CARDS = 200
+      let filter = 'all'
+      const kindOf = (t) =>
+        t.type === 'TEXT' ? 'safe' : t.accepted ? 'redacted' : 'rejected'
+
+      function renderResults(tokens) {
+        lastTokens = tokens
+        selectedIndex = -1
+        drawCards()
+      }
+
+      function drawCards() {
+        const grid = document.getElementById('resultsGrid')
+        document.querySelectorAll('#filters .tab').forEach((btn) => {
+          const n =
+            btn.dataset.f === 'all'
+              ? lastTokens.length
+              : lastTokens.filter((t) => kindOf(t) === btn.dataset.f).length
+          btn.textContent = `${btn.dataset.f[0].toUpperCase()}${btn.dataset.f.slice(1)} (${n})`
+          btn.classList.toggle('active', btn.dataset.f === filter)
+        })
+        const visible = lastTokens
+          .map((token, index) => ({ token, index }))
+          .filter(({ token }) => filter === 'all' || kindOf(token) === filter)
+        if (!visible.length) {
+          grid.innerHTML =
+            '<span class="empty-results">Nothing to show here.</span>'
+          return
+        }
+        const cards = visible.slice(0, MAX_CARDS).map(({ token, index }) => {
+          const kind = kindOf(token)
+          const badge = {
+            safe: 'SAFE',
+            redacted: 'REDACTED',
+            rejected: 'REJECTED',
+          }[kind]
+          return `<article class="result-card ${index === selectedIndex ? 'selected' : ''}" data-index="${index}" tabindex="0">
+                    <div class="card-top"><span class="type-tag">${escapeHtml(token.type)}</span><span class="result-badge ${kind === 'redacted' ? '' : kind}">${badge}</span></div>
+                    <div class="tok">${escapeHtml(token.token)}</div>
+                    ${token.accepted ? `<div class="arrow">&rarr; ${escapeHtml(token.redacted_tag)}</div>` : ''}
+                    ${kind === 'rejected' ? `<p class="result-reason">${escapeHtml(token.reason)}</p>` : ''}
+                </article>`
+        })
+        if (visible.length > MAX_CARDS)
+          cards.push(
+            `<p class="more-results">...and ${visible.length - MAX_CARDS} more (counts above include all).</p>`,
+          )
+        grid.innerHTML = cards.join('')
+        grid.querySelectorAll('.result-card').forEach((card) => {
+          const pick = () => selectToken(Number(card.dataset.index))
+          card.addEventListener('click', pick)
+          card.addEventListener('keydown', (e) => {
+            if (e.key === 'Enter' || e.key === ' ') {
+              e.preventDefault()
+              pick()
             }
-            try {
-                input.value = await file.text();
-                setStatus(inputStatus, `${file.name} loaded.`);
-                setStatus(outputStatus, '');
-            } catch (error) {
-                setStatus(inputStatus, `Could not read file: ${error.message}`, true);
-            }
+          })
+        })
+      }
+
+      document.querySelectorAll('#filters .tab').forEach((btn) =>
+        btn.addEventListener('click', () => {
+          filter = btn.dataset.f
+          drawCards()
+        }),
+      )
+
+      function selectToken(index) {
+        selectedIndex = index
+        document
+          .querySelectorAll('.result-card')
+          .forEach((c) =>
+            c.classList.toggle('selected', Number(c.dataset.index) === index),
+          )
+        const token = lastTokens[index]
+        if (token.dfa_id) activeDfa = token.dfa_id
+        renderAutomata()
+      }
+
+      async function redactFile() {
+        if (!currentFile) return
+        fileRedactButton.disabled = true
+        try {
+          const response = await fetch(
+            '/redact-file?name=' + encodeURIComponent(currentFile.name),
+            {
+              method: 'POST',
+              body: await currentFile.arrayBuffer(),
+            },
+          )
+          if (!response.ok)
+            throw new Error((await response.json()).error || response.status)
+          const blob = await response.blob()
+          const dot = currentFile.name.lastIndexOf('.')
+          const name =
+            currentFile.name.slice(0, dot) +
+            '.redacted' +
+            currentFile.name.slice(dot)
+          const link = document.createElement('a')
+          link.href = URL.createObjectURL(blob)
+          link.download = name
+          link.click()
+          URL.revokeObjectURL(link.href)
+          setStatus(
+            inputStatus,
+            `${name} downloaded (${response.headers.get('X-PII-Count')} items redacted).`,
+          )
+        } catch (error) {
+          setStatus(
+            inputStatus,
+            `Could not redact file: ${error.message}`,
+            true,
+          )
+        } finally {
+          fileRedactButton.disabled = false
         }
+      }
 
-        async function runEngine() {
-            const button = document.getElementById('redactButton');
-            button.disabled = true;
-            setStatus(inputStatus, '');
-            setStatus(outputStatus, '');
-            try {
-                const response = await fetch('/scan', {
-                    method: 'POST',
-                    headers: { 'Content-Type': 'application/json' },
-                    body: JSON.stringify({ text: input.value })
-                });
-                if (!response.ok) throw new Error(`Scan failed (${response.status}).`);
-                const data = await response.json();
-                output.value = data.redacted_text;
-
-                const safeCount = data.tokens.filter(token => token.type === 'TEXT').length;
-                const redactedCount = data.tokens.filter(token => token.accepted).length;
-                document.getElementById('statSafe').textContent = safeCount;
-                document.getElementById('statRedacted').textContent = redactedCount;
-                document.getElementById('statRejected').textContent = data.rejected_count;
-                renderResults(data.tokens);
-            } catch (error) {
-                setStatus(inputStatus, `Could not redact text: ${error.message}`, true);
-            } finally {
-                button.disabled = false;
-            }
+      // ---------- automata diagrams ----------
+      async function loadAutomata() {
+        try {
+          dfas = await (await fetch('/api/dfas')).json()
+          activeDfa = dfas[0].id
+          renderAutomata()
+        } catch (error) {
+          document.getElementById('dfaDesc').textContent =
+            'Could not load automata: ' + error.message
         }
+      }
 
-        function renderResults(tokens) {
-            const grid = document.getElementById('resultsGrid');
-            if (!tokens.length) {
-                grid.innerHTML = '<span class="empty-results">No results to show.</span>';
-                return;
-            }
-            grid.innerHTML = tokens.map(token => {
-                const safe = token.type === 'TEXT';
-                const badge = safe ? 'SAFE' : token.accepted ? 'REDACTED' : 'REJECTED';
-                const result = token.accepted ? token.redacted_tag : token.token;
-                const reason = !token.accepted && !safe
-                    ? (token.type === 'API_KEY' && token.token.length < 20
-                        ? `Length ${token.token.length} < 20`
-                        : token.reason)
-                    : '';
-                return `<article class="result-card">
-                    <div class="result-line">${escapeHtml(token.token)} -&gt; ${escapeHtml(result)}</div>
-                    <span class="result-badge ${safe ? 'safe' : token.accepted ? '' : 'rejected'}">${badge}</span>
-                    ${reason ? `<p class="result-reason">${escapeHtml(reason)}</p>` : ''}
-                </article>`;
-            }).join('');
+      function renderAutomata() {
+        const tabs = document.getElementById('dfaTabs')
+        tabs.innerHTML = dfas
+          .map(
+            (d) =>
+              `<button class="tab ${d.id === activeDfa ? 'active' : ''}" data-id="${d.id}" type="button">${escapeHtml(d.name)}${d.id === 'api_generic' ? ' (no prefix)' : d.id === 'api_vendor' ? ' (vendor prefix)' : ''}</button>`,
+          )
+          .join('')
+        tabs.querySelectorAll('.tab').forEach((btn) =>
+          btn.addEventListener('click', () => {
+            activeDfa = btn.dataset.id
+            renderAutomata()
+          }),
+        )
+        const dfa = dfas.find((d) => d.id === activeDfa)
+        document.getElementById('dfaDesc').textContent = dfa.description
+        document.getElementById('dfaLegend').textContent =
+          'Symbols: ' + dfa.legend
+
+        const token = selectedIndex >= 0 ? lastTokens[selectedIndex] : null
+        const path = token && token.dfa_id === dfa.id ? token.path : []
+        document.getElementById('diagramWrap').innerHTML = drawDiagram(
+          dfa,
+          path,
+        )
+        renderTrace(token)
+      }
+
+      function drawDiagram(dfa, path) {
+        const W = 126,
+          H = 52,
+          GAP = 76,
+          X0 = 28,
+          Y = 150
+        const pos = {}
+        dfa.nodes.forEach((n, i) => {
+          pos[n.id] = i
+        })
+        const cx = (id) => X0 + pos[id] * (W + GAP) + W / 2
+        const width =
+          X0 * 2 + dfa.nodes.length * W + (dfa.nodes.length - 1) * GAP
+        const visitedNodes = new Set(path)
+        const visitedEdges = new Set()
+        for (let i = 0; i + 1 < path.length; i++)
+          visitedEdges.add(path[i] + '>' + path[i + 1])
+
+        let svg = `<svg width="${width}" height="${Y * 2 + 40}" viewBox="0 0 ${width} ${Y * 2 + 40}" role="img" aria-label="${escapeHtml(dfa.name)} automaton">
+                <defs>
+                  <marker id="arrow" viewBox="0 0 10 10" refX="9" refY="5" markerWidth="7" markerHeight="7" orient="auto-start-reverse"><path d="M0 0 L10 5 L0 10 z" fill="#8FA9A6"/></marker>
+                  <marker id="arrowOn" viewBox="0 0 10 10" refX="9" refY="5" markerWidth="7" markerHeight="7" orient="auto-start-reverse"><path d="M0 0 L10 5 L0 10 z" fill="#156F63"/></marker>
+                </defs>`
+        const edgesSorted = [...dfa.edges].sort(
+          (a, b) =>
+            Math.abs(pos[a.to] - pos[a.from]) -
+            Math.abs(pos[b.to] - pos[b.from]),
+        )
+        for (const e of edgesSorted) {
+          const on = visitedEdges.has(e.from + '>' + e.to)
+          const cls = on ? 'edge visited' : 'edge',
+            mk = on ? 'url(#arrowOn)' : 'url(#arrow)'
+          const a = pos[e.from],
+            b = pos[e.to],
+            x1 = cx(e.from),
+            x2 = cx(e.to)
+          let d, lx, ly
+          if (a === b) {
+            // self loop above the box
+            d = `M ${x1 - 18} ${Y - H / 2} C ${x1 - 34} ${Y - 78}, ${x1 + 34} ${Y - 78}, ${x1 + 18} ${Y - H / 2}`
+            lx = x1
+            ly = Y - 70
+          } else if (b === a + 1) {
+            // neighbour: straight arrow
+            d = `M ${x1 + W / 2} ${Y} L ${x2 - W / 2} ${Y}`
+            lx = (x1 + x2) / 2
+            ly = Y - 7
+          } else if (b > a) {
+            // skip forward: arc above
+            const h = 40 + 22 * (b - a)
+            d = `M ${x1 + 14} ${Y - H / 2} Q ${(x1 + x2) / 2} ${Y - H / 2 - h * 1.6}, ${x2 - 14} ${Y - H / 2}`
+            lx = (x1 + x2) / 2
+            ly = Y - H / 2 - h * 0.8 - 4
+          } else {
+            // backward: arc below
+            const h = 40 + 22 * (a - b)
+            d = `M ${x1 - 14} ${Y + H / 2} Q ${(x1 + x2) / 2} ${Y + H / 2 + h * 1.6}, ${x2 + 14} ${Y + H / 2}`
+            lx = (x1 + x2) / 2
+            ly = Y + H / 2 + h * 0.8 + 12
+          }
+          svg += `<path class="${cls}" d="${d}" marker-end="${mk}"/><text class="edge-label" x="${lx}" y="${ly}">${escapeHtml(e.label)}</text>`
         }
-
-        async function copyOutput() {
-            try {
-                await navigator.clipboard.writeText(output.value);
-                setStatus(outputStatus, 'Output copied.');
-            } catch (error) {
-                setStatus(outputStatus, `Could not copy output: ${error.message}`, true);
-            }
+        svg += `<path class="edge" d="M ${X0 - 22} ${Y} L ${X0} ${Y}" marker-end="url(#arrow)"/>` // start arrow
+        for (const n of dfa.nodes) {
+          const x = cx(n.id) - W / 2
+          const cls =
+            'node-box' +
+            (n.accepting ? ' accepting' : '') +
+            (visitedNodes.has(n.id) ? ' visited' : '')
+          const words = n.id.length > 15 ? splitLabel(n.id) : [n.id]
+          svg += `<rect class="${cls}" x="${x}" y="${Y - H / 2}" width="${W}" height="${H}" rx="${n.accepting ? 8 : 6}"/>`
+          if (n.accepting)
+            svg += `<rect class="node-box accepting ${visitedNodes.has(n.id) ? 'visited' : ''}" x="${x + 4}" y="${Y - H / 2 + 4}" width="${W - 8}" height="${H - 8}" rx="5"/>`
+          words.forEach((w, i) => {
+            svg += `<text class="node-text" x="${cx(n.id)}" y="${Y + 4 + (i - (words.length - 1) / 2) * 15}">${escapeHtml(w)}</text>`
+          })
         }
+        return svg + '</svg>'
+      }
 
-        function downloadOutput() {
-            const file = new Blob([output.value], { type: 'text/plain;charset=utf-8' });
-            const url = URL.createObjectURL(file);
-            const link = document.createElement('a');
-            link.href = url;
-            link.download = 'redacted-output.txt';
-            link.click();
-            URL.revokeObjectURL(url);
-            setStatus(outputStatus, 'Download started.');
+      function splitLabel(text) {
+        const mid = text.lastIndexOf(' ', Math.ceil(text.length / 2) + 3)
+        return mid > 0 ? [text.slice(0, mid), text.slice(mid + 1)] : [text]
+      }
+
+      function renderTrace(token) {
+        const title = document.getElementById('traceTitle'),
+          wrap = document.getElementById('traceWrap')
+        if (!token) {
+          title.hidden = true
+          wrap.innerHTML = ''
+          return
         }
-
-        function escapeHtml(value) {
-            return String(value).replace(/[&<>"']/g, char => ({
-                '&': '&amp;', '<': '&lt;', '>': '&gt;', '"': '&quot;', "'": '&#39;'
-            })[char]);
+        title.hidden = false
+        title.textContent = `Trace for "${token.token}"`
+        if (!token.steps.length || !token.dfa_id) {
+          wrap.innerHTML =
+            '<p class="hint">Plain text: no PII automaton matched this token.</p>'
+          return
         }
+        const rows = token.steps
+          .map(
+            (s) => `<tr>
+                <td>${s.step}</td><td>${escapeHtml(s.char)}</td><td>${escapeHtml(s.char_class)}</td>
+                <td>${escapeHtml(s.old_state)}</td><td class="${s.new_state === 'q_d' ? 'dead' : ''}">${escapeHtml(s.new_state)}</td></tr>`,
+          )
+          .join('')
+        const verdict = token.accepted
+          ? `Accepted in final state q1 - ${escapeHtml(token.reason)}`
+          : `Rejected (q_d) - ${escapeHtml(token.reason)}`
+        wrap.innerHTML = `<table class="trace"><thead><tr><th>#</th><th>Char</th><th>Symbol</th><th>From</th><th>To</th></tr></thead><tbody>${rows}</tbody></table><p class="hint">${verdict}</p>`
+      }
 
-        runEngine();
+      async function copyOutput() {
+        try {
+          await navigator.clipboard.writeText(output.value)
+          setStatus(outputStatus, 'Output copied.')
+        } catch (error) {
+          setStatus(
+            outputStatus,
+            `Could not copy output: ${error.message}`,
+            true,
+          )
+        }
+      }
+
+      function downloadOutput() {
+        const file = new Blob([output.value], {
+          type: 'text/plain;charset=utf-8',
+        })
+        const url = URL.createObjectURL(file)
+        const link = document.createElement('a')
+        link.href = url
+        link.download = 'redacted-output.txt'
+        link.click()
+        URL.revokeObjectURL(url)
+        setStatus(outputStatus, 'Download started.')
+      }
+
+      function escapeHtml(value) {
+        return String(value).replace(
+          /[&<>"']/g,
+          (char) =>
+            ({
+              '&': '&amp;',
+              '<': '&lt;',
+              '>': '&gt;',
+              '"': '&quot;',
+              "'": '&#39;',
+            })[char],
+        )
+      }
+
+      loadAutomata()
+      runEngine()
     </script>
-</body>
+  </body>
 </html>

@@ -1,5 +1,5 @@
 import unittest
-from dfa_engine import PIIAutomatonEngine
+from engine import PIIAutomatonEngine
 
 
 class TestPIIAutomatonEngine(unittest.TestCase):
@@ -74,6 +74,52 @@ class TestPIIAutomatonEngine(unittest.TestCase):
             output["redacted_text"],
             "Contact [EMAIL_01] with key [API_KEY_02] or [PHONE_03]."
         )
+
+
+class TestFormattingAndAutomata(unittest.TestCase):
+    def setUp(self):
+        self.engine = PIIAutomatonEngine()
+
+    def test_line_breaks_and_spacing_preserved(self):
+        text = "Name:  Ana\r\nEmail: ana@mail.com\n\n\tPhone: +639123456789\n"
+        out = self.engine.process_text(text)["redacted_text"]
+        self.assertEqual(out, "Name:  Ana\r\nEmail: [EMAIL_01]\n\n\tPhone: [PHONE_02]\n")
+
+    def test_csv_fields_and_brackets(self):
+        out = self.engine.process_text('id,email,phone\n1,"ana@mail.com",09171234567\n(bob@mail.org)')
+        self.assertEqual(out["pii_count"], 3)
+        self.assertIn('1,"[EMAIL_01]",[PHONE_02]', out["redacted_text"])
+        self.assertTrue(out["redacted_text"].endswith("([EMAIL_03])"))
+
+    def test_long_plain_word_is_not_an_api_key(self):
+        res = self.engine.inspect_token("internationalization-and-localization")
+        self.assertFalse(res.accepted)
+
+    def test_generic_key_needs_letter_and_digit(self):
+        self.assertFalse(self.engine.inspect_token("12345678901234567890").accepted)
+        self.assertTrue(self.engine.inspect_token("abcdefghij1234567890").accepted)
+
+    def test_phone_with_dashes(self):
+        self.assertTrue(self.engine.inspect_token("+63-912-345-6789").accepted)
+        self.assertFalse(self.engine.inspect_token("+63--912-345-6789").accepted)
+
+    def test_trace_and_path_are_reported(self):
+        res = self.engine.process_text("a@b.co")["tokens"][0]
+        self.assertEqual(res["dfa_id"], "email")
+        self.assertEqual([s["new_state"] for s in res["steps"]][-1], "q_tld2")
+        self.assertEqual(res["path"][0], "start")
+        self.assertEqual(res["path"][-1], "TLD (2+ letters)")
+
+    def test_diagrams_have_start_and_accepting_nodes(self):
+        for dfa in self.engine.describe_automata():
+            self.assertEqual(dfa["nodes"][0]["id"], "start")
+            self.assertTrue(any(n["accepting"] for n in dfa["nodes"]), dfa["id"])
+            self.assertTrue(dfa["edges"])
+
+    def test_same_token_gives_same_answer_twice(self):
+        a = self.engine.inspect_token("john.doe@email.com")
+        b = self.engine.inspect_token("john.doe@email.com")
+        self.assertEqual((a.accepted, a.final_state), (b.accepted, b.final_state))
 
 
 if __name__ == "__main__":
